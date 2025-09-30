@@ -25,6 +25,7 @@ let s:blamer_show_in_visual_modes = get(g:, 'blamer_show_in_visual_modes', 1)
 let s:blamer_show_in_insert_modes = get(g:, 'blamer_show_in_insert_modes', 1)
 let s:blamer_timer_id = -1
 let s:blamer_relative_time = get(g:, 'blamer_relative_time', 0)
+let s:blamer_min_offset_column = get(g:, 'blamer_min_offset_column', 0)
 
 let s:is_windows = has('win16') || has('win32') || has('win64') || has('win95')
 let s:missing_popup_feature = !has('nvim') && !exists('*popup_create')
@@ -195,15 +196,20 @@ endfunction
 
 function! blamer#SetVirtualText(buffer_number, line_number, message) abort
   let l:line_index = a:line_number - 1
+  let l:line_length = strlen(getline(a:line_number))
+  let l:padding_length = max([s:blamer_min_offset_column - l:line_length, 1])
+  let l:padding = repeat(' ', l:padding_length)
+  let l:text_with_padding = l:padding . s:blamer_prefix . a:message
   if exists('*nvim_buf_set_extmark')
-    call nvim_buf_set_extmark(a:buffer_number, s:blamer_namespace, l:line_index, 0, {"hl_mode": "combine", "virt_text": [[s:blamer_prefix . a:message, 'Blamer']]})
+    call nvim_buf_set_extmark(a:buffer_number, s:blamer_namespace, l:line_index, 0, {"hl_mode": "combine", "virt_text": [[l:text_with_padding, 'Blamer']], "virt_text_pos": "eol"})
   else
-    call nvim_buf_set_virtual_text(a:buffer_number, s:blamer_namespace, l:line_index, [[s:blamer_prefix . a:message, 'Blamer']], {})
+    call nvim_buf_set_virtual_text(a:buffer_number, s:blamer_namespace, l:line_index, [[l:text_with_padding, 'Blamer']], {})
   endif
 endfunction
 
 function! blamer#CreatePopup(buffer_number, line_number, message) abort
-  let l:col = strlen(getline(a:line_number))
+  let l:line_length = strlen(getline(a:line_number))
+  let l:col = max([s:blamer_min_offset_column, l:line_length])
   let l:col = l:col == 0 ? 1 : l:col
   let l:propid = a:line_number . l:col
 
